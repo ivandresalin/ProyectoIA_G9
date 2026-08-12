@@ -1,0 +1,21 @@
+# Entornos virtuales
+.venv/
+venv/
+env/
+ENV/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+
+# Archivos pesados de datos (superan límites de GitHub de 100MB)
+data/raw/*.xlsx
+
+# Archivos de sistema y VS Code / IDE
+.vscode/
+.idea/
+.DS_Store
+*.log

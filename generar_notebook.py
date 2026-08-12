@@ -1,0 +1,270 @@
+import json
+import os
+
+# Definir la estructura de celdas del Notebook Jupyter
+cells = [
+    # CELDA 1: Encabezado y Contexto
+    {
+        "cell_type": "markdown",
+        "metadata": {},
+        "source": [
+            "# 🏫 Proyecto Final: Identificación y Clasificación del Riesgo"
+            " de Deserción Escolar en Ecuador\n",
+            "**Curso:** Inteligencia Artificial - ESPOL  \n",
+            "**Profesor:** Enrique Peláez J. Ph.D.  \n",
+            "**Grupo #9:** Mateo Mayorga, Anthony Navarrete, Andrés Salinas  \n",
+            "**Dataset:** Ministerio de Educación del Ecuador (MINEDUC) - Datos"
+            " Abiertos (2009-2024)\n",
+            "\n",
+            "---  \n",
+            "### 🎯 Objetivo General\n",
+            "Clasificar el nivel de riesgo de deserción escolar (Bajo, Medio,"
+            " Alto) en Unidades Educativas ecuatorianas mediante un modelo"
+            " propio de **Perceptrón Multicapa (MLP)** y comparar su rendimiento"
+            " frente a 5 modelos de línea base, incorporando explicabilidad"
+            " con **SHAP**.",
+        ],
+    },
+    # CELDA 2: Importación de Librerías y Ajustes
+    {
+        "cell_type": "code",
+        "execution_count": None,
+        "metadata": {},
+        "outputs": [],
+        "source": [
+            "import os\n",
+            "import sys\n",
+            "import warnings\n",
+            "import numpy as np\n",
+            "import pandas as pd\n",
+            "import matplotlib.pyplot as plt\n",
+            "import seaborn as sns\n",
+            "from sklearn.model_selection import train_test_split\n",
+            "from sklearn.metrics import (\n",
+            "    classification_report, confusion_matrix, accuracy_score,\n",
+            "    f1_score, precision_score, recall_score\n",
+            ")\n",
+            "from sklearn.utils.class_weight import compute_class_weight\n",
+            "\n",
+            "# Añadir el directorio raíz al path\n",
+            "sys.path.append(os.path.abspath('..'))\n",
+            "\n",
+            "from src.data_preprocessing import DataPreprocessor\n",
+            "from src.mlp_classifier import MLPClassifier\n",
+            "from src.baseline_evaluator import BaselineEvaluator\n",
+            "from src.shap_explainer import SHAPExplainer\n",
+            "\n",
+            "warnings.filterwarnings('ignore')\n",
+            "sns.set_theme(style='whitegrid')\n",
+            "print('✅ Librerías e importaciones cargadas con éxito.')",
+        ],
+    },
+    # CELDA 3: Carga y Preprocesamiento de Datos (ETL)
+    {
+        "cell_type": "code",
+        "execution_count": None,
+        "metadata": {},
+        "outputs": [],
+        "source": [
+            "ruta_inicio ="
+            " '../data/raw/1Registro-Administrativo-Historico_2009-202X-Inicio.xlsx'\n",
+            "ruta_fin ="
+            " '../data/raw/2Registro-Administrativo-Historico_2009-2024-Fin.xlsx'\n",
+            "\n",
+            "print('🔄 Cargando y procesando pipeline ETL del MINEDUC Ecuador...')\n",
+            "preprocesador = DataPreprocessor(ruta_inicio, ruta_fin)\n",
+            "df_raw = preprocesador.cargar_y_fusionar_datasets(sample_size=4000)\n",
+            "df_clean = preprocesador.limpiar_y_calcular_abandono(df_raw)\n",
+            "df_final = preprocesador.discretizar_riesgo(df_clean)\n",
+            "\n",
+            "X, y = preprocesador.transformar_caracteristicas(df_final,"
+            " is_training=True)\n",
+            "X_train, X_test, y_train, y_test = train_test_split(\n",
+            "    X, y, test_size=0.20, random_state=42, stratify=y\n",
+            ")\n",
+            "\n",
+            "print(f'📊 Registros de Entrenamiento: {X_train.shape[0]} | Test:"
+            " {X_test.shape[0]}')\n",
+            "print(f'📐 Variables de entrada procesadas:"
+            " {X_train.shape[1]}')\n",
+            "print('🎯 Distribución de Clases (0: Bajo, 1: Medio, 2: Alto):')\n",
+            "print(pd.Series(y).value_counts().sort_index())",
+        ],
+    },
+    # CELDA 4: Manejo de Desbalance de Clases
+    {
+        "cell_type": "code",
+        "execution_count": None,
+        "metadata": {},
+        "outputs": [],
+        "source": [
+            "# Cálculo explícito de pesos por desbalance de clases\n",
+            "classes = np.unique(y_train)\n",
+            "class_weights = compute_class_weight('balanced', classes=classes,"
+            " y=y_train)\n",
+            "class_weight_dict = dict(zip(classes, class_weights))\n",
+            "\n",
+            "print('⚖️ Pesos asignados por clase para equilibrar la función de"
+            " pérdida:')\n",
+            "for k, v in class_weight_dict.items():\n",
+            "    print(f'   - Clase {k}: {v:.4f}')",
+        ],
+    },
+    # CELDA 5: Entrenamiento del Modelo Propio (MLP en Keras)
+    {
+        "cell_type": "code",
+        "execution_count": None,
+        "metadata": {},
+        "outputs": [],
+        "source": [
+            "print('🧠 Entrenando Perceptrón Multicapa (MLP) con Keras...')\n",
+            "mlp = MLPClassifier(input_dim=X_train.shape[1], num_classes=3)\n",
+            "history = mlp.entrenar(X_train, y_train, epochs=40,"
+            " batch_size=32)\n",
+            "\n",
+            "y_pred_mlp = mlp.predecir(X_test)\n",
+            "print('✅ Entrenamiento del MLP completado.')",
+        ],
+    },
+    # CELDA 6: Gráficos de Aprendizaje del MLP
+    {
+        "cell_type": "code",
+        "execution_count": None,
+        "metadata": {},
+        "outputs": [],
+        "source": [
+            "fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))\n",
+            "\n",
+            "# Curva de Pérdida\n",
+            "ax1.plot(history.history['loss'], label='Pérdida Entrenamiento',"
+            " linewidth=2)\n",
+            "ax1.plot(history.history['val_loss'], label='Pérdida Validación',"
+            " linestyle='--', linewidth=2)\n",
+            "ax1.set_title('Curva de Pérdida (Loss) - MLP', fontsize=12,"
+            " fontweight='bold')\n",
+            "ax1.set_xlabel('Época')\n",
+            "ax1.set_ylabel('Categorical Cross-Entropy')\n",
+            "ax1.legend()\n",
+            "\n",
+            "# Curva de Exactitud\n",
+            "ax2.plot(history.history['accuracy'], label='Accuracy"
+            " Entrenamiento', linewidth=2)\n",
+            "ax2.plot(history.history['val_accuracy'], label='Accuracy"
+            " Validación', linestyle='--', linewidth=2)\n",
+            "ax2.set_title('Curva de Exactitud (Accuracy) - MLP', fontsize=12,"
+            " fontweight='bold')\n",
+            "ax2.set_xlabel('Época')\n",
+            "ax2.set_ylabel('Accuracy')\n",
+            "ax2.legend()\n",
+            "\n",
+            "plt.tight_layout()\n",
+            "plt.show()",
+        ],
+    },
+    # CELDA 7: Entrenamiento de los 5 Modelos Base y Tabla Comparativa
+    {
+        "cell_type": "code",
+        "execution_count": None,
+        "metadata": {},
+        "outputs": [],
+        "source": [
+            "print('📊 Entrenando y evaluando 5 Modelos de Línea Base"
+            " (scikit-learn)...')\n",
+            "evaluador = BaselineEvaluator()\n",
+            "df_baseline = evaluador.entrenar_y_evaluar_todos(X_train, y_train,"
+            " X_test, y_test)\n",
+            "\n",
+            "acc_mlp = accuracy_score(y_test, y_pred_mlp)\n",
+            "prec_mlp = precision_score(y_test, y_pred_mlp, average='macro',"
+            " zero_division=0)\n",
+            "rec_mlp = recall_score(y_test, y_pred_mlp, average='macro',"
+            " zero_division=0)\n",
+            "f1_mlp = f1_score(y_test, y_pred_mlp, average='macro',"
+            " zero_division=0)\n",
+            "\n",
+            "fila_mlp = pd.DataFrame([{\n",
+            "    'Modelo': 'MLP (Propio - Keras)',\n",
+            "    'Accuracy': round(acc_mlp, 4),\n",
+            "    'Precision (Macro)': round(prec_mlp, 4),\n",
+            "    'Recall (Macro)': round(rec_mlp, 4),\n",
+            "    'F1-Score (Macro)': round(f1_mlp, 4)\n",
+            "}])\n",
+            "\n",
+            "tabla_comparativa = pd.concat([fila_mlp, df_baseline],"
+            " ignore_index=True)\n",
+            "\n",
+            "print('\\n' + '='*65)\n",
+            "print('🏆 TABLA COMPARATIVA CONSOLIDADA (6 MODELOS EVALUADOS)')\n",
+            "print('='*65)\n",
+            "display(tabla_comparativa)",
+        ],
+    },
+    # CELDA 8: Matrices de Confusión de Todos los Modelos
+    {
+        "cell_type": "code",
+        "execution_count": None,
+        "metadata": {},
+        "outputs": [],
+        "source": [
+            "fig, axes = plt.subplots(2, 3, figsize=(16, 10))\n",
+            "axes = axes.flatten()\n",
+            "\n",
+            "todos_los_modelos = {'MLP (Keras)': y_pred_mlp}\n",
+            "for nombre, modelo in evaluador.modelos_entrenados.items():\n",
+            "    todos_los_modelos[nombre] = modelo.predict(X_test)\n",
+            "\n",
+            "clases_labels = ['Bajo (0)', 'Medio (1)', 'Alto (2)']\n",
+            "\n",
+            "for idx, (nombre, preds) in enumerate(todos_los_modelos.items()):\n",
+            "    cm = confusion_matrix(y_test, preds)\n",
+            "    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', ax=axes[idx],"
+            " xticklabels=clases_labels, yticklabels=clases_labels)\n",
+            "    axes[idx].set_title(f'Matriz de Confusión: {nombre}',"
+            " fontweight='bold')\n",
+            "    axes[idx].set_xlabel('Predicción')\n",
+            "    axes[idx].set_ylabel('Real')\n",
+            "\n",
+            "plt.tight_layout()\n",
+            "plt.show()",
+        ],
+    },
+    # CELDA 9: Explicabilidad con SHAP
+    {
+        "cell_type": "code",
+        "execution_count": None,
+        "metadata": {},
+        "outputs": [],
+        "source": [
+            "print('🔍 Calculando valores de Shapley con SHAP para la red"
+            " MLP...')\n",
+            "explainer = SHAPExplainer(mlp.model.predict, X_train,"
+            " preprocesador.feature_names)\n",
+            "fig_shap = explainer.generar_grafico_resumen(X_test, n_samples=20)\n",
+            "plt.show()",
+        ],
+    },
+]
+
+# Estructura JSON estándar para un archivo .ipynb (Format v4)
+notebook_data = {
+    "cells": cells,
+    "metadata": {
+        "kernelspec": {
+            "display_name": "Python 3 (ipykernel)",
+            "language": "python",
+            "name": "python3",
+        },
+        "language_info": {"name": "python", "version": "3.11.0"},
+    },
+    "nbformat": 4,
+    "nbformat_minor": 2,
+}
+
+# Crear la carpeta notebooks/ si no existe y guardar el archivo
+os.makedirs("notebooks", exist_ok=True)
+ruta_notebook = os.path.join("notebooks", "Entrenatorio_y_Evaluacion.ipynb")
+
+with open(ruta_notebook, "w", encoding="utf-8") as f:
+  json.dump(notebook_data, f, indent=2, ensure_ascii=False)
+
+print(f"✅ Notebook generado con éxito en: {ruta_notebook}")
