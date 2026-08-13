@@ -16,21 +16,15 @@ class DataPreprocessor:
   def cargar_y_fusionar_datasets(
       self, sample_size: int = 5000
   ) -> pd.DataFrame:
-    """Carga los Excel usando un límite de filas (sample_size) para evitar bloqueos por memoria/XML
-
-    y realiza el merge de forma segura.
-    """
-    print(f"⚡ Leyendo muestra de {sample_size} filas de cada Excel...")
-
-    # Leemos con nrows directamente desde Excel para que sea instantáneo
+    """Carga y fusiona datasets asegurando identificadores limpios y sufijos claros para prevenir data leakage."""
     df_inicio = pd.read_excel(self.ruta_inicio, nrows=sample_size)
     df_fin = pd.read_excel(self.ruta_fin, nrows=sample_size)
 
-    # Limpiar nombres de columnas
+    # Limpieza de nombres de columnas
     df_inicio.columns = df_inicio.columns.str.strip()
     df_fin.columns = df_fin.columns.str.strip()
 
-    # Estandarizar nombre de columna clave AMIE
+    # Estandarización de la clave AMIE
     for col in [
         "Codigo_Institucion",
         "CODIGO_INSTITUCION",
@@ -45,78 +39,78 @@ class DataPreprocessor:
     df_inicio["AMIE"] = df_inicio["AMIE"].astype(str).str.strip()
     df_fin["AMIE"] = df_fin["AMIE"].astype(str).str.strip()
 
-    # Unir por AMIE (si hay coincidencia entre las muestras)
+    # Preservar Año_lectivo para la partición temporal
+    on_cols = ["AMIE"]
+    if "Año_lectivo" in df_inicio.columns and "Año_lectivo" in df_fin.columns:
+      df_inicio["Año_lectivo"] = (
+          df_inicio["Año_lectivo"].astype(str).str.strip()
+      )
+      df_fin["Año_lectivo"] = df_fin["Año_lectivo"].astype(str).str.strip()
+      on_cols.append("Año_lectivo")
+
+    # MERGE con sufijos explícitos (_inicio vs _fin)
     df_merged = pd.merge(
-        df_inicio, df_fin, on="AMIE", how="inner", suffixes=("_inicio", "_fin")
+        df_inicio, df_fin, on=on_cols, how="inner", suffixes=("_inicio", "_fin")
     )
 
-    # Si por orden de filas no coinciden los AMIE de la muestra, hacemos un outer o tomamos coincidencias
     if len(df_merged) == 0:
-      print(
-          "⚠️ Advertencia: No coincidieron AMIEs en la muestra inicial. Realizando alineación por intersección..."
+      df_inicio_sub = df_inicio.head(1000)
+      df_fin_sub = df_fin[df_fin["AMIE"].isin(df_inicio_sub["AMIE"])]
+      df_merged = pd.merge(
+          df_inicio_sub,
+          df_fin_sub,
+          on="AMIE",
+          how="inner",
+          suffixes=("_inicio", "_fin"),
       )
-      amies_comunes = set(df_inicio["AMIE"]).intersection(set(df_fin["AMIE"]))
-
-      if not amies_comunes:
-        # En caso de que los primeros N AMIE no coincidan por diferencia de ordenamiento:
-        df_inicio_sub = df_inicio.head(1000)
-        df_fin_sub = df_fin[df_fin["AMIE"].isin(df_inicio_sub["AMIE"])]
-        df_merged = pd.merge(
-            df_inicio_sub,
-            df_fin_sub,
-            on="AMIE",
-            how="inner",
-            suffixes=("_inicio", "_fin"),
-        )
-      else:
-        df_inicio_filt = df_inicio[df_inicio["AMIE"].isin(amies_comunes)]
-        df_fin_filt = df_fin[df_fin["AMIE"].isin(amies_comunes)]
-        df_merged = pd.merge(
-            df_inicio_filt,
-            df_fin_filt,
-            on="AMIE",
-            how="inner",
-            suffixes=("_inicio", "_fin"),
-        )
 
     return df_merged
 
   def limpiar_y_calcular_abandono(self, df: pd.DataFrame) -> pd.DataFrame:
-    """Limpia nulos, ajusta nombres de columnas y calcula la Tasa de Abandono."""
+    """Calcula la Tasa de Abandono desde las variables de Fin de Año y aísla la variable objetivo."""
     df = df.dropna(how="all", axis=1)
 
-    # Detección inteligente de la columna de estudiantes y abandono
-    col_estudiantes = next(
+    col_estudiantes_fin = next(
         (
             c
             for c in df.columns
-            if "total_estudiantes" in c.lower() or "estudiantes" in c.lower()
+            if ("total_estudiantes" in c.lower() or "estudiantes" in c.lower())
+            and ("fin" in c.lower() or c.endswith("_fin"))
         ),
         None,
     )
+    if not col_estudiantes_fin:
+      col_estudiantes_fin = next(
+          (
+              c
+              for c in df.columns
+              if "total_estudiantes" in c.lower() or "estudiantes" in c.lower()
+          ),
+          None,
+      )
+
     col_abandono = next(
         (c for c in df.columns if "abandono" in c.lower()), None
     )
 
-    if not col_estudiantes or not col_abandono:
+    if not col_estudiantes_fin or not col_abandono:
       raise KeyError(
-          f"No se encontraron columnas requeridas. Disponibles: {list(df.columns[:10])}"
+          "No se encontraron las columnas requeridas para la etiqueta"
+          " objetivo."
       )
 
-    df["Total_Estudiantes"] = pd.to_numeric(
-        df[col_estudiantes], errors="coerce"
+    df["Total_Estudiantes_Fin"] = pd.to_numeric(
+        df[col_estudiantes_fin], errors="coerce"
     )
     df["Abandono"] = pd.to_numeric(df[col_abandono], errors="coerce")
 
-    # Filtrar registros válidos
     df = df[
-        (df["Total_Estudiantes"] > 0)
+        (df["Total_Estudiantes_Fin"] > 0)
         & (df["Abandono"].notnull())
-        & (df["Total_Estudiantes"].notnull())
+        & (df["Total_Estudiantes_Fin"].notnull())
     ].copy()
 
-    # Tasa de Abandono
-    df["Tasa_Abandono"] = df["Abandono"] / df["Total_Estudiantes"]
+    df["Tasa_Abandono"] = df["Abandono"] / df["Total_Estudiantes_Fin"]
     df["Tasa_Abandono"] = df["Tasa_Abandono"].clip(0.0, 1.0)
     return df
 
@@ -130,11 +124,11 @@ class DataPreprocessor:
 
     def asignar_clase(tasa):
       if tasa <= q_low:
-        return 0  # Bajo
+        return 0
       elif tasa <= q_high:
-        return 1  # Medio
+        return 1
       else:
-        return 2  # Alto
+        return 2
 
     df["NivelRiesgoDesercion"] = df["Tasa_Abandono"].apply(asignar_clase)
     return df
@@ -142,7 +136,7 @@ class DataPreprocessor:
   def transformar_caracteristicas(
       self, df: pd.DataFrame, is_training: bool = True
   ):
-    """Aplica OneHotEncoding a variables categóricas y StandardScaler a numéricas."""
+    """Transforma ÚNICAMENTE variables de INICIO de año lectivo para construir la matriz X y evitar Data Leakage."""
     cols_categoricas = [
         "Sostenimiento",
         "Área",
@@ -151,9 +145,11 @@ class DataPreprocessor:
         "Jurisdiccion",
         "Modalidad",
     ]
-    cols_numericas = [
+
+    cols_numericas_candidatas = [
         "Total_Docentes",
         "Total_Administrativos",
+        "Total_Estudiantes_inicio",
         "Total_Estudiantes",
         "Estudiantes_con_discapacidad",
         "EMestiza",
@@ -164,8 +160,29 @@ class DataPreprocessor:
         "EKIchwa",
     ]
 
-    cols_cat_existentes = [c for c in cols_categoricas if c in df.columns]
-    cols_num_existentes = [c for c in cols_numericas if c in df.columns]
+    cols_prohibidas_leakage = [
+        "Abandono",
+        "Promovidos",
+        "No_promovidos",
+        "Total_Estudiantes_fin",
+        "Tasa_Abandono",
+        "NivelRiesgoDesercion",
+        "promovidos",
+        "no_promovidos",
+    ]
+
+    cols_cat_existentes = [
+        c
+        for c in cols_categoricas
+        if c in df.columns and c not in cols_prohibidas_leakage
+    ]
+
+    cols_num_existentes = []
+    for c in cols_numericas_candidatas:
+      if c in df.columns and c not in cols_prohibidas_leakage:
+        if c == "Total_Estudiantes" and "Total_Estudiantes_inicio" in df.columns:
+          continue
+        cols_num_existentes.append(c)
 
     df[cols_num_existentes] = df[cols_num_existentes].fillna(0)
     df[cols_cat_existentes] = df[cols_cat_existentes].fillna("Desconocido")
@@ -186,3 +203,41 @@ class DataPreprocessor:
     self.feature_names = cols_num_existentes + encoded_cat_names
 
     return X_processed, y
+
+  def dividir_por_tiempo(self, df: pd.DataFrame, X: np.ndarray, y: np.ndarray):
+    """Aplica la partición cronológica (Time-based Split) para evitar sesgo temporal."""
+    if "Año_lectivo" not in df.columns:
+      corte = int(len(df) * 0.8)
+      return (
+          X[:corte],
+          X[corte:],
+          y[:corte],
+          y[corte:],
+          "Partición secuencial (80% anterior / 20% reciente)",
+      )
+
+    anios_unicos = sorted(df["Año_lectivo"].unique())
+    if len(anios_unicos) <= 1:
+      corte = int(len(df) * 0.8)
+      return (
+          X[:corte],
+          X[corte:],
+          y[:corte],
+          y[corte:],
+          f"Partición por ordenamiento de lote ({anios_unicos[0]})",
+      )
+
+    anio_test = anios_unicos[-1]
+    mask_train = df["Año_lectivo"] < anio_test
+    mask_test = df["Año_lectivo"] >= anio_test
+
+    if mask_test.sum() < 20 and len(anios_unicos) > 2:
+      anio_test = anios_unicos[-2]
+      mask_train = df["Año_lectivo"] < anio_test
+      mask_test = df["Año_lectivo"] >= anio_test
+
+    X_train, y_train = X[mask_train], y[mask_train]
+    X_test, y_test = X[mask_test], y[mask_test]
+
+    info_split = f"Train: < {anio_test} | Test: >= {anio_test}"
+    return X_train, X_test, y_train, y_test, info_split

@@ -7,7 +7,6 @@ from sklearn.metrics import (
     precision_score,
     recall_score,
 )
-from sklearn.model_selection import train_test_split
 from src.baseline_evaluator import BaselineEvaluator
 from src.data_preprocessing import DataPreprocessor
 from src.mlp_classifier import MLPClassifier
@@ -15,12 +14,15 @@ from src.shap_explainer import SHAPExplainer
 import streamlit as st
 
 st.set_page_config(
-    page_title="Sistema de Alerta de Deserción Escolar - MINEDUC",
+    page_title="Sistema de Alerta de Deserción Escolar - MINEDUC Ecuador",
     layout="wide",
     page_icon="🏫",
 )
 
-st.title("🏫 Sistema de Clasificación y Alerta Temprana de Deserción Escolar")
+st.title(
+    "🏫 Sistema de Clasificación y Alerta Temprana de Deserción Escolar"
+    " (Ecuador)"
+)
 st.caption(
     "Proyecto Final de Inteligencia Artificial - ESPOL | Red Neuronal MLP,"
     " Comparativa con 5 Modelos e Interpretabilidad SHAP"
@@ -32,7 +34,7 @@ sample_size = st.sidebar.slider(
     "Tamaño de muestra de datos",
     min_value=1000,
     max_value=10000,
-    value=3000,
+    value=3500,
     step=500,
 )
 
@@ -53,22 +55,22 @@ def cargar_y_procesar_datos(sample_size):
   return preprocesador, df_final, X, y
 
 
-# Cargar datos con barra de progreso de Streamlit
+# Cargar datos con spinner
 with st.spinner("Cargando y procesando dataset histórico del MINEDUC..."):
   preprocesador, df_final, X, y = cargar_y_procesar_datos(sample_size)
 
-X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.20, random_state=42, stratify=y
+# Partición temporal sugerida por el profesor para evitar sesgo
+X_train, X_test, y_train, y_test, info_split = preprocesador.dividir_por_tiempo(
+    df_final, X, y
 )
+st.sidebar.info(f"📅 Criterio de Partición: {info_split}")
 
 
 @st.cache_resource
 def entrenar_modelos(_X_train, _y_train, _X_test, _y_test, input_dim):
-  # Entrenamiento del Modelo Propio
   mlp = MLPClassifier(input_dim=input_dim, num_classes=3)
   mlp.entrenar(_X_train, _y_train, epochs=30, batch_size=32)
 
-  # Entrenamiento de los 5 modelos de línea base
   evaluador = BaselineEvaluator()
   df_baseline = evaluador.entrenar_y_evaluar_todos(
       _X_train, _y_train, _X_test, _y_test
@@ -77,12 +79,14 @@ def entrenar_modelos(_X_train, _y_train, _X_test, _y_test, input_dim):
   return mlp, evaluador, df_baseline
 
 
-with st.spinner("Entrenando Perceptrón Multicapa (MLP) y modelos base..."):
+with st.spinner(
+    "Entrenando Perceptrón Multicapa (MLP) y modelos de línea base..."
+):
   mlp, evaluador, df_baseline = entrenar_modelos(
       X_train, y_train, X_test, y_test, X_train.shape[1]
   )
 
-# Pestañas principales de la interfaz
+# Pestañas principales
 tab1, tab2, tab3 = st.tabs(
     ["🚦 Semáforo de Riesgo", "🏆 Comparativa de Modelos", "🔍 Explicabilidad (SHAP)"]
 )
@@ -99,16 +103,18 @@ with tab1:
 
   st.divider()
 
-  amie_seleccionado = st.selectbox("Seleccione el código AMIE del plantel:", df_final["AMIE"].unique())
+  amie_seleccionado = st.selectbox(
+      "Seleccione el código AMIE del plantel:", df_final["AMIE"].unique()
+  )
   registro = df_final[df_final["AMIE"] == amie_seleccionado].iloc[0]
 
   riesgo_map = {
-      0: ("🟢 BAJO RIESGO DE DESERCIÓN", "st.success"),
-      1: ("🟡 RIESGO MEDIO DE DESERCIÓN", "st.warning"),
-      2: ("🔴 ALTO RIESGO DE DESERCIÓN", "st.error"),
+      0: ("🟢 BAJO RIESGO DE DESERCIÓN", st.success),
+      1: ("🟡 RIESGO MEDIO DE DESERCIÓN", st.warning),
+      2: ("🔴 ALTO RIESGO DE DESERCIÓN", st.error),
   }
 
-  etiqueta, tipo_alerta = riesgo_map[registro["NivelRiesgoDesercion"]]
+  etiqueta, fn_alerta = riesgo_map[registro["NivelRiesgoDesercion"]]
 
   st.markdown(f"### Nivel de Alerta: **{etiqueta}**")
   if registro["NivelRiesgoDesercion"] == 0:
@@ -127,16 +133,22 @@ with tab1:
         " intervención pedagógica inmediata."
     )
 
-  st.dataframe(
-      df_final[[
-          "AMIE",
-          "Total_Estudiantes",
-          "Abandono",
-          "Tasa_Abandono",
-          "NivelRiesgoDesercion",
-      ]].head(15),
-      use_container_width=True,
-  )
+  # Detección dinámica de columnas para evitar KeyError
+  cols_vista = ["AMIE"]
+  for col in [
+      "Total_Estudiantes_Fin",
+      "Total_Estudiantes_inicio",
+      "Total_Estudiantes",
+  ]:
+    if col in df_final.columns:
+      cols_vista.append(col)
+      break
+
+  for col in ["Abandono", "Tasa_Abandono", "NivelRiesgoDesercion"]:
+    if col in df_final.columns:
+      cols_vista.append(col)
+
+  st.dataframe(df_final[cols_vista].head(15), use_container_width=True)
 
 with tab2:
   st.subheader(
@@ -178,7 +190,8 @@ with tab3:
   st.subheader("Análisis de Explicabilidad con Valores SHAP")
   st.write(
       "Visualización del impacto y peso de las características sociodemográficas e"
-      " institucionales sobre las predicciones del Perceptrón Multicapa."
+      " institucionales de Inicio de Año sobre las predicciones del Perceptrón"
+      " Multicapa."
   )
 
   if st.button("Generar Gráfico SHAP"):
