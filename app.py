@@ -19,71 +19,147 @@ st.set_page_config(
     page_icon="🏫",
 )
 
-# Inyección de estilos CSS para pulido visual de alta fidelidad (UI Neumórfica y Human-Centric)
+# Inyección de CSS para Tema Oscuro Profesional (Professional Dark Theme - High Contrast & WCAG AA)
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
     
-    html, body, [class*="css"] {
-        font-family: 'Nunito', sans-serif;
+    /* 1. Fondo Principal y Tipografía Global */
+    html, body, [class*="css"], .stApp {
+        font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
+        background-color: #0F172A !important; /* Azul Slate Oscuro Profundo */
+        color: #F8FAFC !important; /* Blanco Alto Contraste */
     }
     
-    /* Contenedor principal */
-    .stApp {
-        background-color: #f8fafc;
-    }
-    
-    /* Panel lateral personalizado */
+    /* 2. Barra Lateral (Sidebar) */
     section[data-testid="stSidebar"] {
-        background: linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%);
-        border-right: 1deg solid #e2e8f0;
-        box-shadow: 4px 0px 15px rgba(0,0,0,0.03);
+        background-color: #1E293B !important; /* Azul Slate Medio */
+        border-right: 1px solid #334155 !important;
+    }
+    section[data-testid="stSidebar"] * {
+        color: #F8FAFC !important;
+    }
+    section[data-testid="stSidebar"] .stMarkdown p,
+    section[data-testid="stSidebar"] label,
+    section[data-testid="stSidebar"] span {
+        color: #F8FAFC !important;
+        font-weight: 600 !important;
     }
     
-    /* Encabezados y títulos */
-    h1 {
-        font-family: 'Nunito', sans-serif;
-        font-weight: 800 !important;
-        color: #1e293b !important;
+    /* Tarjeta de Criterio de Partición en Sidebar */
+    div[data-testid="stSidebar"] .stAlert {
+        background-color: #0F172A !important;
+        border: 1px solid #334155 !important;
+        border-left: 4px solid #3B82F6 !important;
+        color: #F8FAFC !important;
+        border-radius: 10px !important;
     }
-    
-    /* Estilizado de pestañas tipo pill buttons */
-    button[data-baseweb="tab"] {
-        border-radius: 20px !important;
-        padding: 8px 20px !important;
+
+    /* 3. Encabezados y Subtítulos */
+    h1, h2, h3, h4, h5, h6 {
+        color: #F8FAFC !important;
         font-weight: 700 !important;
-        background-color: #f1f5f9 !important;
-        border: 1px solid #cbd5e1 !important;
-        color: #475569 !important;
-        transition: all 0.2s ease-in-out;
+    }
+    .stCaption, p, span {
+        color: #94A3B8;
+    }
+
+    /* 4. Pestañas de Navegación (Pill Buttons) */
+    button[data-baseweb="tab"] {
+        background-color: #1E293B !important;
+        border: 1px solid #334155 !important;
+        border-radius: 20px !important;
+        color: #94A3B8 !important;
+        padding: 8px 20px !important;
+        font-weight: 600 !important;
         margin-right: 8px !important;
+        transition: all 0.2s ease-in-out;
     }
-    
+    button[data-baseweb="tab"]:hover {
+        border-color: #3B82F6 !important;
+        color: #F8FAFC !important;
+    }
     button[data-baseweb="tab"][aria-selected="true"] {
-        background-color: #3b82f6 !important;
-        color: #ffffff !important;
-        border-color: #2563eb !important;
-        box-shadow: 0px 4px 12px rgba(59, 130, 246, 0.3) !important;
+        background-color: #2563EB !important;
+        color: #FFFFFF !important;
+        border-color: #3B82F6 !important;
+        box-shadow: 0px 4px 14px rgba(37, 99, 235, 0.4) !important;
     }
-    
-    /* Tarjetas neumórficas para métricas */
+
+    /* 5. Tarjetas Neumórficas de Métricas (KPIs) */
     div[data-testid="stMetric"] {
-        background: #ffffff;
-        border-radius: 16px;
-        padding: 16px 20px;
-        box-shadow: 0px 10px 25px rgba(0, 0, 0, 0.04);
-        border: 1px solid #f1f5f9;
-        transition: transform 0.2s ease;
+        background-color: #1E293B !important;
+        border: 1px solid #334155 !important;
+        border-radius: 12px !important;
+        padding: 18px 22px !important;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.25) !important;
     }
-    
-    div[data-testid="stMetric"]:hover {
-        transform: translateY(-2px);
+    div[data-testid="stMetric"] label {
+        color: #94A3B8 !important;
+        font-size: 0.95rem !important;
+        font-weight: 600 !important;
     }
-    
-    /* Alertas y tarjetas de estado */
-    .stAlert {
-        border-radius: 14px !important;
-        box-shadow: 0px 4px 15px rgba(0, 0, 0, 0.03) !important;
+    div[data-testid="stMetric"] div[data-testid="stMetricValue"] {
+        color: #38BDF8 !important; /* Azul destacado */
+        font-size: 2.1rem !important;
+        font-weight: 800 !important;
+    }
+
+    /* 6. Campos de Selección y Controles */
+    div[data-baseweb="select"] > div {
+        background-color: #1E293B !important;
+        border: 1px solid #334155 !important;
+        color: #F8FAFC !important;
+        border-radius: 8px !important;
+    }
+
+    /* 7. Callouts / Banners de Alertas de Riesgo Personalizadas */
+    .callout-success {
+        background-color: rgba(16, 185, 129, 0.12) !important;
+        border-left: 5px solid #10B981 !important;
+        border-top: 1px solid rgba(16, 185, 129, 0.2);
+        border-right: 1px solid rgba(16, 185, 129, 0.2);
+        border-bottom: 1px solid rgba(16, 185, 129, 0.2);
+        border-radius: 10px;
+        padding: 16px;
+        color: #6EE7B7 !important;
+        font-weight: 600;
+        margin-top: 14px;
+        margin-bottom: 14px;
+    }
+    .callout-warning {
+        background-color: rgba(245, 158, 11, 0.12) !important;
+        border-left: 5px solid #F59E0B !important;
+        border-top: 1px solid rgba(245, 158, 11, 0.2);
+        border-right: 1px solid rgba(245, 158, 11, 0.2);
+        border-bottom: 1px solid rgba(245, 158, 11, 0.2);
+        border-radius: 10px;
+        padding: 16px;
+        color: #FDE68A !important;
+        font-weight: 600;
+        margin-top: 14px;
+        margin-bottom: 14px;
+    }
+    .callout-error {
+        background-color: rgba(239, 68, 68, 0.12) !important;
+        border-left: 5px solid #EF4444 !important;
+        border-top: 1px solid rgba(239, 68, 68, 0.2);
+        border-right: 1px solid rgba(239, 68, 68, 0.2);
+        border-bottom: 1px solid rgba(239, 68, 68, 0.2);
+        border-radius: 10px;
+        padding: 16px;
+        color: #FCA5A5 !important;
+        font-weight: 600;
+        margin-top: 14px;
+        margin-bottom: 14px;
+    }
+
+    /* Contenedor Limpio para Gráficos */
+    .plot-card {
+        background-color: #FFFFFF;
+        border-radius: 12px;
+        padding: 16px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
     }
 </style>
 """, unsafe_allow_html=True)
@@ -172,28 +248,28 @@ with tab1:
   registro = df_final[df_final["AMIE"] == amie_seleccionado].iloc[0]
 
   riesgo_map = {
-      0: ("🟢 BAJO RIESGO DE DESERCIÓN", st.success),
-      1: ("🟡 RIESGO MEDIO DE DESERCIÓN", st.warning),
-      2: ("🔴 ALTO RIESGO DE DESERCIÓN", st.error),
+      0: ("🟢 BAJO RIESGO DE DESERCIÓN", "callout-success"),
+      1: ("🟡 RIESGO MEDIO DE DESERCIÓN", "callout-warning"),
+      2: ("🔴 ALTO RIESGO DE DESERCIÓN", "callout-error"),
   }
 
-  etiqueta, fn_alerta = riesgo_map[registro["NivelRiesgoDesercion"]]
+  etiqueta, clase_callout = riesgo_map[registro["NivelRiesgoDesercion"]]
 
   st.markdown(f"### Nivel de Alerta: **{etiqueta}**")
   if registro["NivelRiesgoDesercion"] == 0:
-    st.success(
-        f"La institución {amie_seleccionado} mantiene niveles estables de"
-        " retención estudiantil."
+    st.markdown(
+        f'<div class="callout-success">🛡️ <b>Estado Estable:</b> La institución {amie_seleccionado} mantiene niveles estables de retención estudiantil.</div>',
+        unsafe_allow_html=True,
     )
   elif registro["NivelRiesgoDesercion"] == 1:
-    st.warning(
-        f"La institución {amie_seleccionado} presenta fluctuaciones moderadas"
-        " que requieren monitoreo."
+    st.markdown(
+        f'<div class="callout-warning">⚠️ <b>Monitoreo Preventivo:</b> La institución {amie_seleccionado} presenta fluctuaciones moderadas que requieren seguimiento.</div>',
+        unsafe_allow_html=True,
     )
   else:
-    st.error(
-        f"Alerta preventiva: La institución {amie_seleccionado} requiere"
-        " intervención pedagógica inmediata."
+    st.markdown(
+        f'<div class="callout-error">🚨 <b>Alerta Preventiva URGENTE:</b> La institución {amie_seleccionado} requiere intervención pedagógica inmediata.</div>',
+        unsafe_allow_html=True,
     )
 
   # Detección dinámica de columnas para evitar KeyError
@@ -246,7 +322,7 @@ with tab2:
       data=tabla_completa,
       x="Modelo",
       y="F1-Score (Macro)",
-      color="#1f77b4",
+      color="#38BDF8",
   )
 
 with tab3:
