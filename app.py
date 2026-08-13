@@ -19,14 +19,77 @@ st.set_page_config(
     page_icon="🏫",
 )
 
-st.title(
-    "🏫 Sistema de Clasificación y Alerta Temprana de Deserción Escolar"
-    " (Ecuador)"
-)
-st.caption(
-    "Proyecto Final de Inteligencia Artificial - ESPOL | Red Neuronal MLP,"
-    " Comparativa con 5 Modelos e Interpretabilidad SHAP"
-)
+# Inyección de estilos CSS para pulido visual de alta fidelidad (UI Neumórfica y Human-Centric)
+st.markdown("""
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap');
+    
+    html, body, [class*="css"] {
+        font-family: 'Nunito', sans-serif;
+    }
+    
+    /* Contenedor principal */
+    .stApp {
+        background-color: #f8fafc;
+    }
+    
+    /* Panel lateral personalizado */
+    section[data-testid="stSidebar"] {
+        background: linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%);
+        border-right: 1deg solid #e2e8f0;
+        box-shadow: 4px 0px 15px rgba(0,0,0,0.03);
+    }
+    
+    /* Encabezados y títulos */
+    h1 {
+        font-family: 'Nunito', sans-serif;
+        font-weight: 800 !important;
+        color: #1e293b !important;
+    }
+    
+    /* Estilizado de pestañas tipo pill buttons */
+    button[data-baseweb="tab"] {
+        border-radius: 20px !important;
+        padding: 8px 20px !important;
+        font-weight: 700 !important;
+        background-color: #f1f5f9 !important;
+        border: 1px solid #cbd5e1 !important;
+        color: #475569 !important;
+        transition: all 0.2s ease-in-out;
+        margin-right: 8px !important;
+    }
+    
+    button[data-baseweb="tab"][aria-selected="true"] {
+        background-color: #3b82f6 !important;
+        color: #ffffff !important;
+        border-color: #2563eb !important;
+        box-shadow: 0px 4px 12px rgba(59, 130, 246, 0.3) !important;
+    }
+    
+    /* Tarjetas neumórficas para métricas */
+    div[data-testid="stMetric"] {
+        background: #ffffff;
+        border-radius: 16px;
+        padding: 16px 20px;
+        box-shadow: 0px 10px 25px rgba(0, 0, 0, 0.04);
+        border: 1px solid #f1f5f9;
+        transition: transform 0.2s ease;
+    }
+    
+    div[data-testid="stMetric"]:hover {
+        transform: translateY(-2px);
+    }
+    
+    /* Alertas y tarjetas de estado */
+    .stAlert {
+        border-radius: 14px !important;
+        box-shadow: 0px 4px 15px rgba(0, 0, 0, 0.03) !important;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+st.title("🏫 Sistema de Clasificación y Alerta Temprana de Deserción Escolar (Ecuador)")
+st.caption("Proyecto Final de Inteligencia Artificial - ESPOL | Red Neuronal MLP, Comparativa con 5 Modelos e Interpretabilidad SHAP")
 
 # Panel lateral de configuración
 st.sidebar.header("⚙️ Configuración del Pipeline")
